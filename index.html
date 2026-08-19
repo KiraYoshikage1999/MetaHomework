@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Counter</title>
+</head>
+<body>
+
+    <div>
+        <h3>Counter Value</h3>
+        <p>Current value: <span id="value">?</span></p>
+        <input type="number" placeholder="Set value" id="number">
+        <button onclick="set_value()">Set value</button>
+    </div>
+
+    <hr>
+
+    <div>
+        <h3>Add New User</h3>
+        <input type="text" placeholder="Type name" id="name">
+        <input type="number" placeholder="Type age" id="age">
+        <button onclick="set_user()">Set User</button>
+    </div>
+
+    <hr>
+
+    <div>
+        <h3>Users List (`currentUsers`)</h3>
+        <ul id="usersList">-</ul>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.17.0/ethers.umd.min.js"></script>
+    <script>
+        const c_abi = [
+            "function get_value() external view returns(uint256)",
+            "function set_value(uint256 _value) external",
+            "function set_user(string calldata _name, uint256 _age) external",
+            "function get_all_users() external view returns (tuple(string name, uint256 age)[] memory)"
+        ];
+
+        const contract_address = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+
+        
+        const get_value = async () => {
+            try {
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const contract = new ethers.Contract(contract_address, c_abi, provider);
+                const value = await contract.get_value();
+                document.getElementById("value").textContent = `${value}`;
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+
+        
+        const set_value = async () => {
+            const valInput = document.getElementById("number").value;
+            if (!valInput) return alert("Enter num!");
+
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(contract_address, c_abi, signer);
+
+            const tx = await contract.set_value(valInput);
+            await tx.wait();
+            await get_value();
+        }
+
+        
+        const loadUsersList = async () => {
+            try {
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const contract = new ethers.Contract(contract_address, c_abi, provider);
+                
+                
+                const users = await contract.get_all_users();
+                const listElement = document.getElementById("usersList");
+                listElement.innerHTML = "";
+
+                if (users.length === 0) {
+                    listElement.innerHTML = "<li>Empt</li>";
+                    return;
+                }
+
+                users.forEach((u, index) => {
+                    const li = document.createElement("li");
+                    li.textContent = `#${index + 1}: ${u.name}, Age: ${u.age}`;
+                    listElement.appendChild(li);
+                });
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+
+        
+        const set_user = async () => {
+            const name = document.getElementById("name").value;
+            const age = document.getElementById("age").value;
+
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            const signer = await provider.getSigner();
+            const contract = new ethers.Contract(contract_address, c_abi, signer);
+
+            const tx = await contract.set_user(name, age);
+            await tx.wait();
+
+            
+            document.getElementById("name").value = "";
+            document.getElementById("age").value = "";
+
+            
+            await loadUsersList();
+        }
+
+        
+        get_value();
+        loadUsersList();
+    </script>
+</body>
+</html>
